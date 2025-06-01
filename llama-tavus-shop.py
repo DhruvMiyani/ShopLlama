@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+from utils.stripe_checkout import create_checkout_link
 
 # API Keys
 LLAMA_API_KEY = 'LLM|1245705104001779|zbn6HjpcOleaP0XHLL-vKw_n2Bw'
@@ -109,6 +110,10 @@ def converse():
                 os.system("afplay output.mp3")  # Mac: play the audio
             else:
                 print("(Audio generation failed)")
+        elif "checkout" in user_input.lower():
+            url = create_checkout_link()
+            print(f"Go to this checkout page: {url}")
+            # Optionally, use Tavus to speak the URL or a message
         else:
             print("(Llama did not return a response)")
 
