@@ -1,6 +1,6 @@
 import os, requests, json, logging, uuid, pathlib
 
-TAVUS_API_KEY = os.getenv("TAVUS_API_KEY")
+TAVUS_API_KEY = '12032643152644c19e18bc16969287c3'
 TAVUS_URL     = "https://api.tavus.io/v1/tts"
 HEADERS       = {
     "Authorization": f"Bearer {TAVUS_API_KEY}",

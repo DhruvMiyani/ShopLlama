@@ -1,7 +1,7 @@
 import os, requests, json, logging
 
-LLAMA_API_KEY = os.getenv("LLAMA_API_KEY")
-LLAMA_URL     = os.getenv("LLAMA_URL", "https://api.meta.ai/v1/chat/completions")
+LLAMA_API_KEY = 'LLM|1245705104001779|zbn6HjpcOleaP0XHLL-vKw_n2Bw'
+LLAMA_URL     = "https://api.llama.com/v1/chat/completions"
 
 HEADERS = {
     "Authorization": f"Bearer {LLAMA_API_KEY}",
