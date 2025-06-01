@@ -1,0 +1,4 @@
+python-dotenv==1.0.0
+requests==2.31.0
+selenium==4.18.1
+webdriver-manager==4.0.1 
