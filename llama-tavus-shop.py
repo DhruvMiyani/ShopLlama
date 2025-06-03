@@ -4,18 +4,17 @@ import json
 import speech_recognition as sr
 import uuid
 import time
+from utils.stripe_checkout import create_checkout_link
 
 # API Keys
 LLAMA_API_KEY = 'LLM|1245705104001779|zbn6HjpcOleaP0XHLL-vKw_n2Bw'
-TAVUS_API_KEY = '12032643152644c19e18bc16969287c3'
+TAVUS_API_KEY = 'tvus_sk_1a2b3c4d5e6f7g8h9i0j'
+DEFAULT_VIDEO_URL = "https://cdn.replica.tavus.io/sample-videos/1.mp4"
 
-# API endpoints
-LLAMA_URL = "https://api.llama.com/v1/chat/completions"
-TAVUS_TTS_URL = "https://tavusapi.com/v2/tts"
-TAVUS_LIPSYNC_URL = "https://tavusapi.com/v2/lipsync"
-
-# Default video for lipsync
-DEFAULT_VIDEO_URL = "https://cdn.replica.tavus.io/sample-videos/20283/replica-talking-head.mp4"
+# API Endpoints
+LLAMA_URL = "https://api.llama-api.com/chat/completions"
+TAVUS_URL = "https://api.tavus.io/v1/tts"
+TAVUS_LIPSYNC_URL = "https://api.tavus.io/v1/lipsync"
 
 # Headers
 llama_headers = {
@@ -25,52 +24,39 @@ llama_headers = {
 
 tavus_headers = {
     "x-api-key": TAVUS_API_KEY,
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Accept": "audio/mpeg"
 }
 
-def get_speech_input():
-    recognizer = sr.Recognizer()
-    mic = sr.Microphone()
-    print("🎤 Speak now... (you have ~10 seconds)")
-
-    with mic as source:
-        recognizer.adjust_for_ambient_noise(source)
-        audio = recognizer.listen(source, timeout=5, phrase_time_limit=15)
-
-    try:
-        text = recognizer.recognize_google(audio)
-        print(f"You said: {text}")
-        return text
-    except sr.UnknownValueError:
-        print("❌ Sorry, I could not understand that.")
-        return None
-    except sr.RequestError as e:
-        print(f"❌ API error: {e}")
-        return None
-
 def call_llama_api(prompt):
-    payload = {
-        "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
-        "messages": [
-            {
-                "role": "system",
-                "content": "You are a helpful AI assistant. Generate concise, clear content suitable for voice narration."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    }
+    """Make a call to the Llama API"""
     try:
-        response = requests.post(LLAMA_URL, headers=llama_headers, json=payload, timeout=30)
-        response.raise_for_status()
-        return response.json()['completion_message']['content']['text']
-    except Exception as e:
+        data = {
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "stream": False
+        }
+        
+        response = requests.post(
+            LLAMA_URL,
+            headers=llama_headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Error response from Llama: {response.text}")
+            return None
+            
+    except requests.exceptions.RequestException as e:
         print(f"Error calling Llama API: {e}")
         return None
 
 def call_tavus_tts(text):
+    """Make a call to the Tavus TTS API"""
     tavus_data = {
         "input": {"text": text},
         "voice": {"name": "en-US-Neural2-F"},
@@ -82,7 +68,11 @@ def call_tavus_tts(text):
     }
 
     try:
-        response = requests.post("https://tavusapi.com/v2/tts", headers=tavus_headers, json=tavus_data, timeout=30)
+        print(f"Attempting to connect to Tavus API at {TAVUS_URL}")
+        print(f"Request headers: {json.dumps(tavus_headers, indent=2)}")
+        print(f"Request data: {json.dumps(tavus_data, indent=2)}")
+        
+        response = requests.post(TAVUS_URL, headers=tavus_headers, json=tavus_data, timeout=60)
         response.raise_for_status()
 
         filename = f"output_{uuid.uuid4().hex}.mp3"
@@ -96,6 +86,7 @@ def call_tavus_tts(text):
         return None
 
 def upload_audio_to_host(audio_path):
+    """Upload audio file to file.io for hosting"""
     print("☁️ Uploading audio to file.io...")
     with open(audio_path, "rb") as f:
         response = requests.post("https://file.io", files={"file": f})
@@ -107,8 +98,8 @@ def upload_audio_to_host(audio_path):
         print("❌ Upload failed:", response.text)
         return None
 
-
 def call_tavus_lipsync(audio_url):
+    """Create a lipsync video using Tavus API"""
     lipsync_data = {
         "original_video_url": DEFAULT_VIDEO_URL,
         "source_audio_url": audio_url,
@@ -130,6 +121,7 @@ def call_tavus_lipsync(audio_url):
         return None
 
 def poll_for_video(lipsync_id):
+    """Poll Tavus API for video completion"""
     poll_url = f"https://tavusapi.com/v2/lipsync/{lipsync_id}"
     headers = {"x-api-key": TAVUS_API_KEY}
 
@@ -137,7 +129,7 @@ def poll_for_video(lipsync_id):
         response = requests.get(poll_url, headers=headers)
         result = response.json()
 
-        print("📦 Full Tavus response:", json.dumps(result, indent=2))  # 🔍 ADD THIS
+        print("📦 Full Tavus response:", json.dumps(result, indent=2))
 
         status = result.get("status")
         print(f"⏳ Status: {status}")
@@ -154,21 +146,45 @@ def poll_for_video(lipsync_id):
     return None
 
 def converse():
-    print("🎙️ Using hardcoded MP3 for lipsync...")
-
-    hosted_audio_url = "https://cdn.replica.tavus.io/sample-audios/f9ded6d303.mp3"
-
-    print("🎬 Creating lipsync video...")
-    lipsync_id = call_tavus_lipsync(hosted_audio_url)
-    if not lipsync_id:
-        return
-
-    print("⏳ Waiting for final video from Tavus...")
-    final_video_url = poll_for_video(lipsync_id)
-    if final_video_url:
-        print(f"✅ Your video is ready: {final_video_url}")
-    else:
-        print("❌ Failed to generate video")
+    print("Welcome! Type your message and press Enter to chat with the computer. Type 'exit' or 'quit' to end.")
+    while True:
+        print("\nYou can type your message now:")
+        user_input = input("You: ")
+        if user_input.strip().lower() in ["exit", "quit"]:
+            print("Goodbye!")
+            break
+            
+        print("\nThinking...")
+        llama_response = call_llama_api(user_input)
+        
+        if llama_response and 'completion_message' in llama_response:
+            generated_content = llama_response['completion_message']['content']['text']
+            print(f"Llama: {generated_content}")
+            
+            print("\nGenerating audio...")
+            mp3_file = call_tavus_tts(generated_content)
+            
+            if mp3_file:
+                print("\nPlaying audio...")
+                os.system(f"afplay {mp3_file}")  # Mac: play the audio
+                
+                print("\nCreating video...")
+                hosted_audio_url = upload_audio_to_host(mp3_file)
+                if hosted_audio_url:
+                    lipsync_id = call_tavus_lipsync(hosted_audio_url)
+                    if lipsync_id:
+                        print("\nWaiting for video generation...")
+                        video_url = poll_for_video(lipsync_id)
+                        if video_url:
+                            print(f"\n🎥 Your video is ready: {video_url}")
+            else:
+                print("(Audio generation failed)")
+                
+        elif "checkout" in user_input.lower():
+            url = create_checkout_link()
+            print(f"Go to this checkout page: {url}")
+        else:
+            print("(Llama did not return a response)")
 
 if __name__ == "__main__":
     converse()
