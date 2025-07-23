@@ -1,6 +1,6 @@
 # ShopLlama
 
-A modern e-commerce platform built with the latest web technologies.
+conversational shopping agent
 
 <img width="651" alt="Screenshot 2025-06-12 at 6 21 43 PM" src="https://github.com/user-attachments/assets/bac0c082-80f7-45c1-996f-d0e7878d55a2" />
 
