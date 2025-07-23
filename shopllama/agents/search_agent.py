@@ -14,8 +14,8 @@ from selenium.common.exceptions import TimeoutException
 load_dotenv()
 
 # API Keys
-TAVUS_API_KEY = "ff5322363aed4974bfa4b5feb2891c3f"
-PPLX_API_KEY = "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"
+TAVUS_API_KEY = ""
+PPLX_API_KEY = ""
 
 # Model Configuration
 SEARCH_MODEL = "sonar"  # For product search via Perplexity
